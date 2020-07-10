@@ -1,3 +1,4 @@
 rootProject.name='SkinApp'
 include ':app'
 include ':skinlibrary'
+include ':skin'

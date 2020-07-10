@@ -21,10 +21,9 @@ public class SkinResources {
      */
     private volatile static SkinResources instance;
 
-    private Context mContext;
 
     private SkinResources(Context context) {
-        mContext = context;
+        mAppResources = context.getResources();
     }
 
     public static SkinResources getInstance() {

@@ -9,14 +9,18 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.lis.skinlibrary.utils.SkinThemeUtils;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
+import java.util.Observable;
+import java.util.Observer;
 
 /**
  * 用来接管系统的View的生产过程
  */
-public class SkinLayoutInflaterFactory implements LayoutInflater.Factory2 {
+public class SkinLayoutInflaterFactory implements LayoutInflater.Factory2, Observer {
     //记录对应View的构造函数
     private static final Class<?>[] mConstructorSignature = new Class[]{
             Context.class, AttributeSet.class};
@@ -67,7 +71,11 @@ public class SkinLayoutInflaterFactory implements LayoutInflater.Factory2 {
             return null;
         }
         for (int i = 0; i < mClassPrefixList.length; i++) {
-            return createView(mClassPrefixList[i] + name, context, attributeSet);
+            View view = createView(mClassPrefixList[i] + name, context, attributeSet);
+            //view不为空才返回，为空继续循环
+            if (view != null) {
+                return view;
+            }
         }
         return null;
     }
@@ -75,6 +83,9 @@ public class SkinLayoutInflaterFactory implements LayoutInflater.Factory2 {
     private View createView(String name, Context context, AttributeSet attributeSet) {
         //抄源码
         Constructor<? extends View> constructor = findConstructor(context, name);
+        if (constructor == null) {
+            return null;
+        }
         try {
             return constructor.newInstance(context, attributeSet);
         } catch (IllegalAccessException e) {
@@ -99,6 +110,9 @@ public class SkinLayoutInflaterFactory implements LayoutInflater.Factory2 {
         Constructor<? extends View> constructor = mConstructorMap.get(name);
         if (constructor == null) {
             try {
+                if (name.equals("android.widget.ViewStub")) {
+                    return null;
+                }
                 Class<? extends View> aClass = context.getClassLoader().loadClass(name).asSubclass(View.class);
                 try {
                     constructor = aClass.getConstructor(mConstructorSignature);
@@ -118,5 +132,14 @@ public class SkinLayoutInflaterFactory implements LayoutInflater.Factory2 {
     @Override
     public View onCreateView(@NonNull String name, @NonNull Context context, @NonNull AttributeSet attrs) {
         return null;
+    }
+
+    //有人发通知，这里会通知
+    @Override
+    public void update(Observable o, Object arg) {
+        //更新状态栏
+        SkinThemeUtils.updateStatusBarColor(mActivity);
+        //更新皮肤
+        mSkinAttribute.applySkin();
     }
 }

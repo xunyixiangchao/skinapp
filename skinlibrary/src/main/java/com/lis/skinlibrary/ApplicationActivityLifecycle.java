@@ -37,8 +37,9 @@ public class ApplicationActivityLifecycle implements Application.ActivityLifecyc
          * 更新布局视图
          */
         LayoutInflater layoutInflater = activity.getLayoutInflater();
+        boolean isHooked = true;
         try {
-            Field mFactorySet = LayoutInflater.class.getDeclaredField("mFactorySet");
+            Field mFactorySet = layoutInflater.getClass().getDeclaredField("mFactorySet");
             mFactorySet.setAccessible(true);
             try {
                 mFactorySet.setBoolean(layoutInflater, false);
@@ -46,14 +47,34 @@ public class ApplicationActivityLifecycle implements Application.ActivityLifecyc
                 e.printStackTrace();
             }
         } catch (NoSuchFieldException e) {
+            isHooked = false;
             e.printStackTrace();
+
         }
+
         //使用factory2,设置布局加载工程
         SkinLayoutInflaterFactory factory = new SkinLayoutInflaterFactory(activity);
-        LayoutInflaterCompat.setFactory2(layoutInflater, factory);
-        mLayoutInflaterFactories.put(activity, factory);
-        mObservable.addObserver(factory);
-
+        if (isHooked) {
+            LayoutInflaterCompat.setFactory2(layoutInflater, factory);
+        } else {
+            //解决android Q上无法二次setFactroy的问题。
+            Class<LayoutInflaterCompat> compatClass = LayoutInflaterCompat.class;
+            Class<LayoutInflater> inflaterClass = LayoutInflater.class;
+            try {
+                Field sCheckedField = compatClass.getDeclaredField("sCheckedField");
+                sCheckedField.setAccessible(true);
+                sCheckedField.setBoolean(layoutInflater, false);
+                Field mFactory2 = inflaterClass.getDeclaredField("mFactory2");
+                mFactory2.setAccessible(true);
+                mFactory2.set(layoutInflater, factory);
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (NoSuchFieldException e) {
+                e.printStackTrace();
+            }
+            mLayoutInflaterFactories.put(activity, factory);
+            mObservable.addObserver(factory);
+        }
     }
 
     @Override
@@ -77,7 +98,8 @@ public class ApplicationActivityLifecycle implements Application.ActivityLifecyc
     }
 
     @Override
-    public void onActivitySaveInstanceState(@NonNull Activity activity, @NonNull Bundle outState) {
+    public void onActivitySaveInstanceState(@NonNull Activity activity, @NonNull Bundle
+            outState) {
 
     }
 
